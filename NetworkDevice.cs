@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace AtwaterMonitor
 {
+
     class NetworkDevice
     {
         //Device State tracking for the Model.
