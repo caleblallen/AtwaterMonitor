@@ -17,11 +17,11 @@ namespace AtwaterMonitor
             Warning,
             Alarm
         }
-        private DeviceState State { get; set; }
+        public DeviceState State { get; set; }
 
         //Network Location Info
-        public string Hostname { get; set; }
-        private string IPAddress { get; set; }
+        public string Hostname { get; private set; }
+        public string IPAddress { get; private set; }
 
         //Constructor
         public NetworkDevice(string hostname, string ip, DeviceState state = DeviceState.OffLine)
