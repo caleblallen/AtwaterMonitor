@@ -11,8 +11,13 @@ namespace AtwaterMonitor
         //Track the max temperature readings we want to keep per device.
         static int MaxHistoryLength = 48;
 
+        static 
+
         public string Model { get; set; }
+        
         public string TemperatureSensorIndex { get; set; }
+
+
 
         //Temperature readings are value pair. Temperature and Time of Reading
         internal struct TemperatureReading

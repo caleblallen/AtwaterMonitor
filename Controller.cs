@@ -9,27 +9,52 @@ using SnmpSharpNet;
 
 namespace AtwaterMonitor
 {
-
-    class Controller
+    public class ImproperOidsException : Exception
     {
-
-       /* static void Main(string[] args)
+        public ImproperOidsException()
         {
-            AtwaterMonitorModel = new Model();
+        }
+        public ImproperOidsException(string message) : base(message)
+        {
+        }
 
-            foreach(string ip in UpsIpAddresses)
-            {
-                SnmpTest(ip);
-            }
-
-        }*/
-
+        public ImproperOidsException(string message, Exception inner) : base(message, inner)
+        {
+        }
+    }
+    class Controller
+    { //SnmpSharpNet.SnmpException
+        private Dictionary<string, string> ApcOids;
+        private string[] UpsIpAddresses;
 
         public bool init()
         {
+            //Can't forget about our unit tests
+            TestDriver();
+
+            //Create the master Model
             Model AtwaterMonitorModel = new Model();
 
-            string[] UpsIpAddresses = {
+            //Initialize and Fill the ApcOids Dictionary
+            //TODO: Move these OIDs to a config file of some sort.
+            ApcOids = new Dictionary<string, string>();
+            //ApcOids.Add("1.3.6.1.4.1.318.1.1.1.1.1.1", "UpsType"); 
+            ApcOids.Add("1.3.6.1.4.1.318.1.1.1.1.1.1.0", "UpsType"); 
+            ApcOids.Add("1.3.6.1.4.1.318.1.1.1.1.1.2.0", "UpsName");
+            ApcOids.Add("1.3.6.1.4.1.318.1.1.1.1.2.3.0", "UpsSerialNumber");
+            ApcOids.Add("1.3.6.1.4.1.318.1.1.1.2.2.2.0", "UpsBatteryTemperature");
+            ApcOids.Add("1.3.6.1.4.1.318.1.1.1.3.2.1.0", "UpsInputVoltage");
+            ApcOids.Add("1.3.6.1.4.1.318.1.1.1.3.2.4.0", "UpsInputFrequency");
+            ApcOids.Add("1.3.6.1.4.1.318.1.1.1.4.2.1.0", "UpsOutputVoltage");
+            ApcOids.Add("1.3.6.1.4.1.318.1.1.1.4.2.2.0", "UpsOutputFrequency");
+            ApcOids.Add("1.3.6.1.4.1.318.1.1.1.7.2.4.0", "UpsDateOfLastSelfTest");
+            ApcOids.Add("1.3.6.1.4.1.318.1.1.1.7.2.3.0", "UpsResultsOfLastSelfTest"); //1: ok, 2: failed, 3: invalid, 4: in progress
+            
+            //The following is indexed and might cause lookup problems.
+            //ApcOids.Add("1.3.6.1.4.1.318.1.1.25.1.2.1.5.1.1", "UpsProbeTemperatureDegF");
+
+            //Initialize our UPS IPAddresses
+            UpsIpAddresses = new string[] {
                 "10.10.200.110",
                 "10.10.200.111",
                 "10.10.200.112",
@@ -65,7 +90,8 @@ namespace AtwaterMonitor
 
             foreach (string ip in UpsIpAddresses)
             {
-                SnmpTest(ip);
+                Console.WriteLine(CreateApcUpsAtIp(ip));
+                //SnmpTest(ip);
             }
 
             //TODO Fix this.
@@ -73,42 +99,51 @@ namespace AtwaterMonitor
 
         }
 
-        static void SnmpTest(string ipAddress)
+        private UPS CreateApcUpsAtIp(string ipAddress)
         {
-            Dictionary<string, string> ApcOids = new Dictionary<string, string>();
+            
 
-            ApcOids.Add("1.3.6.1.4.1.318.1.1.1.1.1.1.0", "UpsType");
-            ApcOids.Add("1.3.6.1.4.1.318.1.1.1.2.2.1.0", "UpsBatteryCapacity");
-            ApcOids.Add("1.3.6.1.4.1.318.1.1.1.2.2.2.0", "UpsBatteryTemperature");
-            ApcOids.Add("1.3.6.1.4.1.318.1.1.1.2.2.3.0", "UpsBatteryRuntimeRemaining");
-            ApcOids.Add("1.3.6.1.4.1.318.1.1.1.2.2.4.0", "UpsBatteryReplace");
-            ApcOids.Add("1.3.6.1.4.1.318.1.1.1.3.2.1.0", "UpsInputVoltage");
-            ApcOids.Add("1.3.6.1.4.1.318.1.1.1.3.2.4.0", "UpsInputFrequency");
-            ApcOids.Add("1.3.6.1.4.1.318.1.1.1.4.2.1.0", "UpsOutputVoltage");
-            ApcOids.Add("1.3.6.1.4.1.318.1.1.1.4.2.2.0", "UpsOutputFrequency");
-            ApcOids.Add("1.3.6.1.4.1.318.1.1.1.4.2.3.0", "UpsOutputLoad");
-            ApcOids.Add("1.3.6.1.4.1.318.1.1.1.4.2.4.0", "UpsOutputCurrent");
-            ApcOids.Add("1.3.6.1.4.1.318.1.1.1.7.2.4.0", "UpsDateOfLastSelfTest");
+            //The last two digits of the Temp Probe OID are an index. Port # then Sensor #. When in doubt, force it.
+            string[] ApcUpsProbTemperatureDegFOids = { "1.3.6.1.4.1.318.1.1.25.1.2.1.5.1.1", "1.3.6.1.4.1.318.1.1.25.1.2.1.5.2.1",
+                                                    "1.3.6.1.4.1.318.1.1.25.1.2.1.5.1.2", "1.3.6.1.4.1.318.1.1.25.1.2.1.5.2.2"};
+            //No choice but to check and see if the device is there. Two possible exception paths that must be handled.
+            try
+            {
+                GetSnmpInfo(ipAddress, ApcOids.Keys);
+            }
+            //An SnmpException means we either have no device to reach, or we're hitting a device without SNMP v1 running and responding.
+            catch (SnmpException e)
+            {
+                Console.WriteLine($"Device at {ipAddress} is not responding to SNMP Calls:\n{e.Message}");
+                return null;
+            }
+            //An ImproperOidsException means we are asking for Object IDentifiers the target is unaware of.
+            catch (ImproperOidsException e)
+            {
+                Console.WriteLine($"Device at {ipAddress} is not responding to the configured OIDs:\n{e.Message}");
+                return null;
+            }
 
-            //The following is indexed and might cause lookup problems.
-            ApcOids.Add("1.3.6.1.4.1.318.1.1.25.1.2.1.5.1.1", "UpsProbeTemperatureDegF");
+            ApcUpsProbTemperatureDegFOids.GetEnumerator();
+            return null;
+        }
 
+        private void GetSnmpInfo(string ipAddress, IEnumerable<string> oids)
+        {
 
-
-            /**********Credit for this code comes from the SnmpSharpNet.com webpage**********/
-            /********** http://www.snmpsharpnet.com/?page_id=111 **********/
+            /********** Heavily Modified code from the SnmpSharpNet webpage **********/
+            /**********      http://www.snmpsharpnet.com/?page_id=111       **********/
 
             // SNMP community name
             OctetString community = new OctetString("public");
 
             // Define agent parameters class
             AgentParameters param = new AgentParameters(community);
-            // Set SNMP version to 1 (or 2)
+
+            // Set SNMP version to 1
             param.Version = SnmpVersion.Ver1;
+
             // Construct the agent address object
-            // IpAddress class is easy to use here because
-            //  it will try to resolve constructor parameter if it doesn't
-            //  parse to an IP address
             IpAddress agent = new IpAddress(ipAddress);
 
             // Construct target
@@ -117,13 +152,85 @@ namespace AtwaterMonitor
             // Pdu class used for all requests
             Pdu pdu = new Pdu(PduType.Get);
 
+            //Add list of all relevant OIDs
+            foreach (string key in oids)
+            {
+                pdu.VbList.Add(key);
+            }
+
+            // Make SNMP request
+            SnmpV1Packet result = (SnmpV1Packet)target.Request(pdu, param);
+
+            // If result is null then agent didn't reply or we couldn't parse the reply.
+            if (result != null)
+            {
+                // ErrorStatus other then 0 is an error returned by 
+                // the Agent - see SnmpConstants for error definitions
+                if (result.Pdu.ErrorStatus != 0)
+                {
+                    //Close the connection since we're going to throw an exception.
+                    target.Close();
+
+                    // agent reported an error with the request
+                    string msg = $"OID {oids.ElementAt(result.Pdu.ErrorIndex)} "
+                                 + "has exited with error status "
+                                 + $"{ result.Pdu.ErrorStatus}: {Enum.GetName(typeof(PduErrorStatus), result.Pdu.ErrorStatus)}";
+                    throw new ImproperOidsException(msg);
+                }
+                else
+                {
+                    //Print all information we gleaned from inspecting the UPS
+                    IEnumerator<Vb> EnumeratedResults = result.Pdu.GetEnumerator();
+                    do
+                    {
+                        if (EnumeratedResults.Current == null)
+                            continue;
+
+                        Console.WriteLine($"{ApcOids[EnumeratedResults.Current.Oid.ToString()],30}: {EnumeratedResults.Current.Value.ToString(),-30}");
+
+                    } while (EnumeratedResults.MoveNext());
+
+                }
+            }
+            else
+            {
+                Console.WriteLine("No response received from SNMP agent.");
+            }
+            target.Close();
+
+            /******** END Credited Code ********/
+        }
+
+
+        private void SnmpTest(string ipAddress)
+        {
+
+            /********** Heavily Modified code from the SnmpSharpNet webpage **********/
+            /**********      http://www.snmpsharpnet.com/?page_id=111       **********/
+
+            // SNMP community name
+            OctetString community = new OctetString("public");
+
+            // Define agent parameters class
+            AgentParameters param = new AgentParameters(community);
+            
+            // Set SNMP version to 1
+            param.Version = SnmpVersion.Ver1;
+           
+            // Construct the agent address object
+            IpAddress agent = new IpAddress(ipAddress);
+
+            // Construct target
+            UdpTarget target = new UdpTarget((IPAddress)agent, 161, 2000, 1);
+
+            // Pdu class used for all requests
+            Pdu pdu = new Pdu(PduType.Get);
+
+            //Add list of all relevant OIDs
             foreach(KeyValuePair<string,string> pair in ApcOids)
             {
                 pdu.VbList.Add(pair.Key);
             }
-
-            //pdu.VbList.Add("1.3.6.1.4.1.318.1.1.1.1.1.1.0"); //sysTemperature
-
 
             // Make SNMP request
             SnmpV1Packet result = (SnmpV1Packet)target.Request(pdu, param);
@@ -142,38 +249,17 @@ namespace AtwaterMonitor
                 }
                 else
                 {
-                    // Reply variables are returned in the same order as they were added
-                    //  to the VbList
-                    /*Console.WriteLine("sysTemperature({0}) ({1}): {2}",
-                        result.Pdu.VbList[0].Oid.ToString(),
-                        SnmpConstants.GetTypeName(result.Pdu.VbList[0].Value.Type),
-                        result.Pdu.VbList[0].Value.ToString());*/
-                    //int index = 0;
-                    //Console.WriteLine(Pdu.VbList);
-                    IEnumerator<Vb> test = result.Pdu.GetEnumerator();
+                    //Print all information we gleaned from inspecting the UPS
+                    IEnumerator<Vb> EnumeratedResults = result.Pdu.GetEnumerator();
                     do
                     {
-                        if (test.Current == null)
+                        if (EnumeratedResults.Current == null)
                             continue;
 
-                         Console.WriteLine($"{ApcOids[test.Current.Oid.ToString()],30}: {test.Current.Value.ToString(),-30}");
+                         Console.WriteLine($"{ApcOids[EnumeratedResults.Current.Oid.ToString()],30}: {EnumeratedResults.Current.Value.ToString(),-30}");
 
-                        //Console.WriteLine(test.Current);
+                    } while (EnumeratedResults.MoveNext());
 
-                    } while (test.MoveNext());
-                    //Console.WriteLine(test.Count());
-                    /*foreach(Vb i in test)
-                    {
-
-                    }
-                    //foreach(KeyValuePair<string, string> pair in result.Pdu.GetEnumerator)
-                    //{
-                        Console.WriteLine("{0}({1}) ({2}): {3}",
-                            pair.Value,
-                            result.Pdu.VbList[index++].Oid.ToString(),
-                            SnmpConstants.GetTypeName(result.Pdu.VbList[index++].Value.Type),
-                            result.Pdu.VbList[index++].Value.ToString());*/
-                    //}
                 }
             }
             else

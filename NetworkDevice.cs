@@ -41,14 +41,5 @@ namespace AtwaterMonitor
                     $"\tIP Address:\t{this.IPAddress}\n" +
                     $"\tStatus:\t\t{this.State}\n";
         }
-
-
-        /*
-         * What do I want here?
-         *  1) Network access for this device (done)
-         *  2) Needs to know its current temperature
-         *  3) Needs to know its highest temperature within the last 24 hours???
-         * 
-         */
     }
 }
