@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Net;
+using SnmpSharpNet;
 
 namespace AtwaterMonitor
 {
@@ -12,8 +14,68 @@ namespace AtwaterMonitor
     {
         static void Main(string[] args)
         {
-            TestDriver();
+            Console.WriteLine("I am doing something");
+            //TestDriver();
+            SnmpTest();
 
+        }
+
+        static void SnmpTest()
+        {
+            /**********Credit for this code comes from the SnmpSharpNet.com webpage**********/
+            /********** http://www.snmpsharpnet.com/?page_id=111 **********/
+
+            // SNMP community name
+            OctetString community = new OctetString("public");
+
+            // Define agent parameters class
+            AgentParameters param = new AgentParameters(community);
+            // Set SNMP version to 1 (or 2)
+            param.Version = SnmpVersion.Ver1;
+            // Construct the agent address object
+            // IpAddress class is easy to use here because
+            //  it will try to resolve constructor parameter if it doesn't
+            //  parse to an IP address
+            IpAddress agent = new IpAddress("10.10.210.100");
+
+            // Construct target
+            UdpTarget target = new UdpTarget((IPAddress)agent, 161, 2000, 1);
+
+            // Pdu class used for all requests
+            Pdu pdu = new Pdu(PduType.Get);
+            pdu.VbList.Add("1.3.6.1.4.1.318.1.1.1.1.1.1.0"); //sysTemperature
+
+
+            // Make SNMP request
+            SnmpV1Packet result = (SnmpV1Packet)target.Request(pdu, param);
+
+            // If result is null then agent didn't reply or we couldn't parse the reply.
+            if (result != null)
+            {
+                // ErrorStatus other then 0 is an error returned by 
+                // the Agent - see SnmpConstants for error definitions
+                if (result.Pdu.ErrorStatus != 0)
+                {
+                    // agent reported an error with the request
+                    Console.WriteLine("Error in SNMP reply. Error {0} index {1}",
+                        result.Pdu.ErrorStatus,
+                        result.Pdu.ErrorIndex);
+                }
+                else
+                {
+                    // Reply variables are returned in the same order as they were added
+                    //  to the VbList
+                    Console.WriteLine("sysTemperature({0}) ({1}): {2}",
+                        result.Pdu.VbList[0].Oid.ToString(),
+                        SnmpConstants.GetTypeName(result.Pdu.VbList[0].Value.Type),
+                        result.Pdu.VbList[0].Value.ToString());
+                }
+            }
+            else
+            {
+                Console.WriteLine("No response received from SNMP agent.");
+            }
+            target.Close();
         }
         
         static void TestDriver()
