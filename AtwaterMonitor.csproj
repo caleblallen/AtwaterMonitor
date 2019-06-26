@@ -47,6 +47,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Controller.cs" />
+    <Compile Include="AMProgram.cs" />
     <Compile Include="Model.cs" />
     <Compile Include="NetworkDevice.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

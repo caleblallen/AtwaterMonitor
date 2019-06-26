@@ -11,6 +11,9 @@ namespace AtwaterMonitor
         //Track the max temperature readings we want to keep per device.
         static int MaxHistoryLength = 48;
 
+        public string Model { get; set; }
+        public string TemperatureSensorIndex { get; set; }
+
         //Temperature readings are value pair. Temperature and Time of Reading
         internal struct TemperatureReading
         {
@@ -24,11 +27,11 @@ namespace AtwaterMonitor
             }
         }
 
-        public float AverageTemperature { get; private set; }
-        public float CurrentTemperature { get; private set; }
+        public float AverageAmbientTemperature { get; private set; }
+        public float CurrentAmbientTemperature { get; private set; }
 
         //Temperature logs. 
-        private Queue<TemperatureReading> TemperatureHistory = new Queue<TemperatureReading>();
+        private Queue<TemperatureReading> AmbientTemperatureHistory = new Queue<TemperatureReading>();
 
         public UPS(
             string hostname,
@@ -37,13 +40,13 @@ namespace AtwaterMonitor
             float temperature = 0.0f) : base(hostname, ip, state)
         {
             //Add the passed Current Temperature
-            this.CurrentTemperature = temperature;
+            this.CurrentAmbientTemperature = temperature;
 
             //There is only one temperature reading, so we pass it to the average as well.
-            this.AverageTemperature = temperature;
+            this.AverageAmbientTemperature = temperature;
 
             //Log the passed current temperature in the History Queue.
-            TemperatureHistory.Enqueue(new TemperatureReading(temperature: temperature, time: DateTime.Now));
+            AmbientTemperatureHistory.Enqueue(new TemperatureReading(temperature: temperature, time: DateTime.Now));
 
         }
 
@@ -51,21 +54,21 @@ namespace AtwaterMonitor
 
         private void CalculateAverageTemperature()
         {
-            AverageTemperature = TemperatureHistory.Average(t => t.temp);
+            AverageAmbientTemperature = AmbientTemperatureHistory.Average(t => t.temp);
         }
 
         public bool AddTemperatureReading(float temp, DateTime timeStamp)
         {
 
             //Dequeue to make room if we reach the maximum number of entries
-            while (TemperatureHistory.Count() > MaxHistoryLength)
-                TemperatureHistory.Dequeue();
+            while (AmbientTemperatureHistory.Count() > MaxHistoryLength)
+                AmbientTemperatureHistory.Dequeue();
 
             //Add our new temperature reading to the queue
-            TemperatureHistory.Enqueue(new TemperatureReading(temperature: temp, time: timeStamp));
+            AmbientTemperatureHistory.Enqueue(new TemperatureReading(temperature: temp, time: timeStamp));
 
             //Track the Current Temperature
-            CurrentTemperature = temp;
+            CurrentAmbientTemperature = temp;
 
             //Recalculate the average temperature since we've altered the log.
             CalculateAverageTemperature();
@@ -78,8 +81,8 @@ namespace AtwaterMonitor
         {
 
             return base.ToString() +
-                $"\tAverage Temp:\t{this.AverageTemperature}°F\n" +
-                $"\tCurrent Temp:\t{this.CurrentTemperature}°F\n";
+                $"\tAverage Temp:\t{this.AverageAmbientTemperature}°F\n" +
+                $"\tCurrent Temp:\t{this.CurrentAmbientTemperature}°F\n";
         }
     }
 

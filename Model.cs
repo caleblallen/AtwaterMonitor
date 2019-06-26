@@ -69,7 +69,7 @@ namespace AtwaterMonitor
         {
             List<UPS> upsDevices = this.GetUPSDevices();
 
-            return upsDevices.FindAll(x => x.CurrentTemperature > temp);
+            return upsDevices.FindAll(x => x.CurrentAmbientTemperature > temp);
         }
 
 
@@ -78,7 +78,7 @@ namespace AtwaterMonitor
         {
             List<UPS> upsDevices = this.GetUPSDevices();
 
-            return upsDevices.FindAll(x => x.CurrentTemperature < temp);
+            return upsDevices.FindAll(x => x.CurrentAmbientTemperature < temp);
         }
     }
 }
