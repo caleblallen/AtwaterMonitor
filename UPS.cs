@@ -11,11 +11,36 @@ namespace AtwaterMonitor
         //Track the max temperature readings we want to keep per device.
         static int MaxHistoryLength = 48;
 
-        static 
+        //Object Identifiers for APC UPS Units
+        public static string[] Oids =
+        {
+            "1.3.6.1.4.1.318.1.1.1.1.1.1.0", //APC Model Name/Number
+            "1.3.6.1.4.1.318.1.1.1.1.1.2.0", //APC Hostname
+            "1.3.6.1.4.1.318.1.1.1.1.2.3.0", //APC Serial Number
+            "1.3.6.1.4.1.318.1.1.1.2.2.2.0", //APC Battery Temperature
+            "1.3.6.1.4.1.318.1.1.1.3.2.1.0", //APC Input Voltage
+            "1.3.6.1.4.1.318.1.1.1.3.2.4.0", //APC Input Frequency
+            "1.3.6.1.4.1.318.1.1.1.4.2.1.0", //APC Output Voltage
+            "1.3.6.1.4.1.318.1.1.1.4.2.2.0", //APC Output Frequency
+            "1.3.6.1.4.1.318.1.1.1.7.2.4.0", //APC Date of Last Self Test
+            "1.3.6.1.4.1.318.1.1.1.7.2.3.0", //APC Results of Last Self Test
+        };
+
+        //Potential Object Identifiers for the this UPS's Temperature Probe
+        public static string[] TemperatureProbeOids =
+        {
+            "1.3.6.1.4.1.318.1.1.25.1.2.1.5.1.1", //APC Universal IO Port 1, Sensor 1
+            "1.3.6.1.4.1.318.1.1.25.1.2.1.5.2.1", //APC Universal IO Port 2, Sensor 1
+            "1.3.6.1.4.1.318.1.1.25.1.2.1.5.1.2", //APC Universal IO Port 1, Sensor 2
+            "1.3.6.1.4.1.318.1.1.25.1.2.1.5.2.2"  //APC Universal IO Port 2, Sensor 2
+        };
 
         public string Model { get; set; }
-        
-        public string TemperatureSensorIndex { get; set; }
+
+        public string SerialNumber { get; }
+
+        //We keep track of the temperature probe Oid. 
+        public string TemperatureSensorOid { get; private set; }
 
 
 
@@ -55,6 +80,32 @@ namespace AtwaterMonitor
 
         }
 
+        public UPS(
+            string hostname,
+            string ip,
+            string model,
+            string serialNumber,
+            string tempSensorOid = "",
+            DeviceState state = DeviceState.OffLine,
+            float temperature = 0.0f) : base(hostname, ip, state)
+        {
+            //Add the passed Current Temperature
+            this.CurrentAmbientTemperature = temperature;
+
+            //There is only one temperature reading, so we pass it to the average as well.
+            this.AverageAmbientTemperature = temperature;
+
+            this.SerialNumber = serialNumber;
+
+            this.Model = model;
+
+            this.TemperatureSensorOid = tempSensorOid;
+
+            //Log the passed current temperature in the History Queue.
+            AmbientTemperatureHistory.Enqueue(new TemperatureReading(temperature: temperature, time: DateTime.Now));
+
+        }
+
         public UPS() : this(hostname: "UNKNOWN", ip: "UNKNOWN") { }
 
         private void CalculateAverageTemperature()
@@ -62,7 +113,8 @@ namespace AtwaterMonitor
             AverageAmbientTemperature = AmbientTemperatureHistory.Average(t => t.temp);
         }
 
-        public bool AddTemperatureReading(float temp, DateTime timeStamp)
+
+        public bool AddAmbientTemperatureReading(float temp, DateTime timeStamp)
         {
 
             //Dequeue to make room if we reach the maximum number of entries
@@ -86,6 +138,9 @@ namespace AtwaterMonitor
         {
 
             return base.ToString() +
+                $"\tModel:\t{this.Model}\n" +
+                $"\tSerial Number:\t{this.SerialNumber}\n" +
+                $"\tTemperature Sensor Oid:\t{this.TemperatureSensorOid}\n" +
                 $"\tAverage Temp:\t{this.AverageAmbientTemperature}°F\n" +
                 $"\tCurrent Temp:\t{this.CurrentAmbientTemperature}°F\n";
         }
