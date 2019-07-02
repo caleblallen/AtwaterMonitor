@@ -24,7 +24,7 @@ namespace AtwaterMonitor
         }
     }
     class Controller
-    { //SnmpSharpNet.SnmpException
+    { 
         private string[] UpsIpAddresses;
 
         
