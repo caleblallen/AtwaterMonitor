@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading;
 using System.Net;
 using SnmpSharpNet;
 
@@ -82,13 +83,31 @@ namespace AtwaterMonitor
                 AtwaterMonitorModel.AddNetworkDevice(CreateApcUpsAtIp(ip));
             }
 
-            IEnumerator < NetworkDevice > dev = AtwaterMonitorModel.getDeviceEnumerator();
+            List<UPS> modeledDevices = AtwaterMonitorModel.GetUPSDeviceEnumerator();
 
-            do
+            foreach(UPS u in modeledDevices)
             {
-                Console.WriteLine(dev.Current);
-            } while (dev.MoveNext());
+                Console.WriteLine(u);
+            }
 
+
+            bool done = false;
+
+            while (!done)
+            {
+                foreach(UPS u in modeledDevices)
+                {
+                    //Update the current UPS. Skip the wait if we don't successfully update this unit.
+                    if(UpdateUPS(u))
+                    {
+                        //Naive Polling Interval.
+                        Console.WriteLine("Sleeping (2 seconds)...\n");
+                        Thread.Sleep(2000);
+                    }
+
+                }
+
+            }
 
             //TODO Fix this.
             return true;
@@ -97,6 +116,13 @@ namespace AtwaterMonitor
 
         private bool UpdateUPS(UPS deviceToPoll)
         {
+            Console.WriteLine($"Updating Device at {deviceToPoll.IPAddress}");
+
+            //No Temperature Probe Oid on this device. Skip for now.
+            //TODO: Have this try to reaquire a temperature probe Oid? 
+            if(string.IsNullOrWhiteSpace(deviceToPoll.TemperatureSensorOid))
+                return false;
+
             try
             {
                 //Version 1 Solution is just to grab the ambient temperature.
@@ -142,7 +168,7 @@ namespace AtwaterMonitor
                     }
                     catch (ImproperOidsException e)
                     {
-                        //We anticipate some SNMP calls to fail because of an incorrect Oids.
+                        //Expect some SNMP calls to fail because of an incorrect Oids.
                         tProbeOidIndex++;
                     }
                 } while (tProbeOidIndex < UPS.TemperatureProbeOids.Count() && temperatureResult.Equals(new KeyValuePair<string,string>("","")));

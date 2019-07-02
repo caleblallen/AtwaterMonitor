@@ -57,22 +57,15 @@ namespace AtwaterMonitor
         }
 
         //Extract and return just UPS devices. Better or worse than separate list???
-        public List<UPS> GetUPSDevices()
+        public List<UPS> GetUPSDeviceEnumerator()
         {
-            List<UPS> upsDevices = new List<UPS>();
-            foreach(NetworkDevice n in MonitoredDevices)
-            {
-                if (n is UPS)
-                    upsDevices.Add((UPS)n);
-            }
-
-            return upsDevices;
+            return MonitoredDevices.Where(x => x is UPS).Select(x => (UPS)x).ToList();
         }
 
         //Extract and return list of UPS devices with CurrentTemperuature above temp. 
         public List<UPS> GetDevicesAboveTemperature(float temp)
         {
-            List<UPS> upsDevices = this.GetUPSDevices();
+            List<UPS> upsDevices = this.GetUPSDeviceEnumerator();
 
             return upsDevices.FindAll(x => x.CurrentAmbientTemperature > temp);
         }
@@ -81,7 +74,7 @@ namespace AtwaterMonitor
         //Extract and return list of UPS devices with CurrentTemperature below temp
         public List<UPS> GetDevicesBelowTemperature(float temp)
         {
-            List<UPS> upsDevices = this.GetUPSDevices();
+            List<UPS> upsDevices = this.GetUPSDeviceEnumerator();
 
             return upsDevices.FindAll(x => x.CurrentAmbientTemperature < temp);
         }

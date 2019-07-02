@@ -130,6 +130,8 @@ namespace AtwaterMonitor
             //Recalculate the average temperature since we've altered the log.
             CalculateAverageTemperature();
 
+            Console.WriteLine(string.Join(", ", AmbientTemperatureHistory.Select(x => $"{x.temp}: {x.timeStamp.ToString()}")));
+
             //TODO: Return success or failure. (can this fail?)
             return true;
         }
