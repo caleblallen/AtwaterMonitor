@@ -27,6 +27,11 @@ namespace AtwaterMonitor
             return MonitoredDevices.Count() - 1;
         }
 
+        public IEnumerator<NetworkDevice> getDeviceEnumerator()
+        {
+            return MonitoredDevices.GetEnumerator();
+        }
+
         //Return the device at a specific index. Will allow the view to grab context specific devices.
         public NetworkDevice GetDeviceAtIndex(int index)
         {

@@ -26,13 +26,21 @@ namespace AtwaterMonitor
     { //SnmpSharpNet.SnmpException
         private string[] UpsIpAddresses;
 
+        
+        private Model AtwaterMonitorModel;
+
+        public Controller()
+        {
+            AtwaterMonitorModel = new Model();
+        }
+
         public bool init()
         {
             //Can't forget about our unit tests
             TestDriver();
 
             //Create the master Model
-            Model AtwaterMonitorModel = new Model();
+            //Model AtwaterMonitorModel = new Model();
 
             //Initialize our UPS IPAddresses
             UpsIpAddresses = new string[] {
@@ -71,13 +79,45 @@ namespace AtwaterMonitor
 
             foreach (string ip in UpsIpAddresses)
             {
-                Console.WriteLine(CreateApcUpsAtIp(ip));
-                //SnmpTest(ip);
+                AtwaterMonitorModel.AddNetworkDevice(CreateApcUpsAtIp(ip));
             }
+
+            IEnumerator < NetworkDevice > dev = AtwaterMonitorModel.getDeviceEnumerator();
+
+            do
+            {
+                Console.WriteLine(dev.Current);
+            } while (dev.MoveNext());
+
 
             //TODO Fix this.
             return true;
 
+        }
+
+        private bool UpdateUPS(UPS deviceToPoll)
+        {
+            try
+            {
+                //Version 1 Solution is just to grab the ambient temperature.
+                //Niave Solution will assume UPS.TemperatureSensorOid is accurate. 
+                //TODO: Make this failover to the other Oids in case the Temperature Probe is moved to new port.
+                KeyValuePair<string, string> temperatureResult = GetSnmpResultForOid(deviceToPoll.IPAddress, deviceToPoll.TemperatureSensorOid);
+                deviceToPoll.State = UPS.DeviceState.OnLine;
+                deviceToPoll.AddAmbientTemperatureReading(float.Parse(temperatureResult.Value), DateTime.Now);
+            }
+            catch (ImproperOidsException e)
+            {
+                Console.WriteLine("TemperatureProbeOid is incorrect or unit's IP has changed: {0}",e.Message);
+                //TODO: Make this check for the other possible Temperature Probe Oids before failing out.
+                return false;
+            }
+            catch (SnmpException e)
+            {
+                Console.WriteLine("Cannot reach the Unit. Marking as offline. ({0})", e.Message);
+                deviceToPoll.State = UPS.DeviceState.OffLine;
+            }
+            return true;
         }
 
         private UPS CreateApcUpsAtIp(string ipAddress)
