@@ -16,12 +16,16 @@ namespace AtwaterMonitor
         private IPAddress ipAddress;
         private int port;
 
+        //public Func<AMProgram.WebRequestType,string> SignalCallback;
+
         public AsyncService(int port)
         {
             // set up port and determine IP Address
             this.port = port;
             string hostName = Dns.GetHostName();
             IPHostEntry ipHostInfo = Dns.GetHostEntry(hostName);
+
+
 
 
             this.ipAddress = IPAddress.Parse("10.10.42.80");
@@ -31,7 +35,7 @@ namespace AtwaterMonitor
             Console.WriteLine("IP Address is {0}", this.ipAddress.ToString());
         }
 
-        public async void Run()
+        public async void Run(ServiceCallback callback)
         {
             TcpListener listener = new TcpListener(this.ipAddress, this.port);
             listener.Start();
@@ -44,7 +48,7 @@ namespace AtwaterMonitor
                 {
                     //Console.WriteLine("Waiting for a request ..."); 
                     TcpClient tcpClient = await listener.AcceptTcpClientAsync();
-                    Task t = Process(tcpClient);
+                    Task t = Process(tcpClient,callback);
                     await t; // could combine with above
                 }
                 catch (Exception ex)
@@ -54,18 +58,20 @@ namespace AtwaterMonitor
             }
         } // Start
 
-        private async Task Process(TcpClient tcpClient)
+        private async Task Process(TcpClient tcpClient, ServiceCallback callback)
         {
             string clientEndPoint = tcpClient.Client.RemoteEndPoint.ToString();
             Console.WriteLine("Received connection request from " + clientEndPoint);
 
+
+            bool done = false;
             try
             {
                 NetworkStream networkStream = tcpClient.GetStream();
                 StreamReader reader = new StreamReader(networkStream);
                 StreamWriter writer = new StreamWriter(networkStream);
                 writer.AutoFlush = true;
-                while (true)
+                while (!done)
                 {
                     string request = await reader.ReadLineAsync();
                     if (request != null)
@@ -76,11 +82,15 @@ namespace AtwaterMonitor
 
                         if (!string.IsNullOrEmpty(response))
                         {
+
+                            string r = callback.Invoke(0, "10.10.10.10");
                             StringBuilder res = new StringBuilder("HTTP/1.1 200 OK\r\n");
                             res.Append("Content-Type: text/*\r\n");
                             res.Append("\r\n");
-                            res.AppendFormat("Your Computed Response is: {0}", response);
+                            res.AppendFormat(r);
                             await writer.WriteLineAsync(res.ToString());
+                            tcpClient.Dispose();
+                            done = true;
                         }
 
                     }
@@ -100,18 +110,13 @@ namespace AtwaterMonitor
         private static string PrepareReponse(string request)
         {
             //TODO: "request" is really spooky. Needs to be sanitizied against Cross Site Scripting, encoding crashes, etc.
-            Regex rx = new Regex(@"GET\s/(.*?)/(.*?)\s.*");
-            MatchCollection requestMatches = rx.Matches(request);
+            return request.IndexOf("GET") > -1 || request.IndexOf("POST") > -1 ? $"We got it: {request}" : "";
 
-            if (requestMatches.Count > 0)
-            {
-                foreach (Match m in rx.Matches(request))
-                {
-                    return $"{m.Groups[1]} --> {m.Groups[2]}";
-                }
-            }
-
-            return "";
+/*
+            if (request.IndexOf("GET") > -1 || request.IndexOf("POST") > -1)
+                return $"We got it: {request}";
+            else
+                return "";*/
         }
     }
 }

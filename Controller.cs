@@ -10,6 +10,10 @@ using SnmpSharpNet;
 
 namespace AtwaterMonitor
 {
+    //Delegate that the webserver can use the signal the Controller.
+    public delegate string ServiceCallback(WebRequestType x, string y);
+
+    //Exception for OID handling. It requires no special message at this time.
     public class ImproperOidsException : Exception
     {
         public ImproperOidsException()
@@ -23,11 +27,12 @@ namespace AtwaterMonitor
         {
         }
     }
+
+    //Primary Controller object for the Atwater Monitor program.
     class Controller
     { 
         private string[] UpsIpAddresses;
 
-        
         private Model AtwaterMonitorModel;
 
         public Controller()
@@ -39,9 +44,6 @@ namespace AtwaterMonitor
         {
             //Can't forget about our unit tests
             TestDriver();
-
-            //Create the master Model
-            //Model AtwaterMonitorModel = new Model();
 
             //Initialize our UPS IPAddresses
             UpsIpAddresses = new string[] {
@@ -85,14 +87,9 @@ namespace AtwaterMonitor
 
             List<UPS> modeledDevices = AtwaterMonitorModel.GetUPSDeviceEnumerator();
 
-            foreach(UPS u in modeledDevices)
-            {
-                Console.WriteLine(u);
-            }
-
 
             bool done = false;
-
+            
             while (!done)
             {
                 foreach(UPS u in modeledDevices)
@@ -108,8 +105,9 @@ namespace AtwaterMonitor
                 }
 
             }
+            
 
-            //TODO Fix this.
+            //TODO: Make this return value reflect success/failure
             return true;
 
         }
@@ -351,6 +349,33 @@ namespace AtwaterMonitor
             /******** END Credited Code ********/
         }
 
+        public ServiceCallback GetHttpRequestHandler()
+        {
+            ServiceCallback s = new ServiceCallback(HttpRequestHandler);
+            return s;
+        }
+
+        public string HttpRequestHandler(WebRequestType type, string deviceIpAddress)
+        {
+            StringBuilder ControllerResponse = new StringBuilder();
+            switch(type)
+            {
+                case WebRequestType.GetTemperature:
+                    Console.WriteLine("HttpRequestHandler is running");
+
+                    
+                    foreach(UPS u in AtwaterMonitorModel.GetUPSDeviceEnumerator())
+                    {
+                        ControllerResponse.AppendLine($"UPS at {u.IPAddress} has the average temperature of {u.AverageAmbientTemperature}");
+                    }
+                    break;
+
+                default:
+                    break;
+            }
+
+            return ControllerResponse.ToString();
+        }
 
         static void TestDriver()
         {
