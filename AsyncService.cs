@@ -87,7 +87,7 @@ namespace AtwaterMonitor
                             StringBuilder res = new StringBuilder("HTTP/1.1 200 OK\r\n");
                             res.Append("Content-Type: text/*\r\n");
                             res.Append("\r\n");
-                            res.AppendFormat(r);
+                            res.Append(r);
                             await writer.WriteLineAsync(res.ToString());
                             tcpClient.Dispose();
                             done = true;

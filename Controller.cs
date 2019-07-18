@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using System.Threading;
 using System.Net;
 using SnmpSharpNet;
+using Newtonsoft.Json;
+
 
 namespace AtwaterMonitor
 {
@@ -349,25 +351,21 @@ namespace AtwaterMonitor
             /******** END Credited Code ********/
         }
 
+        //Method to return our Closure (delegeate) for use.
         public ServiceCallback GetHttpRequestHandler()
         {
-            ServiceCallback s = new ServiceCallback(HttpRequestHandler);
-            return s;
+            return new ServiceCallback(this.HttpRequestHandler);
         }
 
+        //Method to format our web server responses based on the type of request.
         public string HttpRequestHandler(WebRequestType type, string deviceIpAddress)
         {
             StringBuilder ControllerResponse = new StringBuilder();
             switch(type)
             {
                 case WebRequestType.GetTemperature:
-                    Console.WriteLine("HttpRequestHandler is running");
-
-                    
-                    foreach(UPS u in AtwaterMonitorModel.GetUPSDeviceEnumerator())
-                    {
-                        ControllerResponse.AppendLine($"UPS at {u.IPAddress} has the average temperature of {u.AverageAmbientTemperature}");
-                    }
+     
+                    ControllerResponse.Append(JsonConvert.SerializeObject(AtwaterMonitorModel.GetUPSDeviceEnumerator(), Formatting.None).ToString());
                     break;
 
                 default:

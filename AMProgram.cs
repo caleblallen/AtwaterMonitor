@@ -8,13 +8,14 @@ namespace AtwaterMonitor
 {
     public enum WebRequestType 
     {
-        GetTemperature
+        GetTemperature,
+        GetAllTemperatures,
+
     };
 
     class AMProgram
     {
         private const int ListenPort = 3000;
-
 
         public static void Main(string[] args)
         {
