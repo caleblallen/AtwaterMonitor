@@ -35,14 +35,14 @@ namespace AtwaterMonitor
             "1.3.6.1.4.1.318.1.1.25.1.2.1.5.2.2"  //APC Universal IO Port 2, Sensor 2
         };
 
+        //Model Number of the UPS
         public string Model { get; set; }
 
+        //Serial Number of the UPS
         public string SerialNumber { get; }
 
-        //We keep track of the temperature probe Oid. 
+        //Store the Temperature Probe's Oid. It changes depending on which port it is plugged in to.
         public string TemperatureSensorOid { get; private set; }
-
-
 
         //Temperature readings are value pair. Temperature and Time of Reading
         internal struct TemperatureReading
@@ -129,8 +129,6 @@ namespace AtwaterMonitor
 
             //Recalculate the average temperature since we've altered the log.
             CalculateAverageTemperature();
-
-            Console.WriteLine(string.Join(", ", AmbientTemperatureHistory.Select(x => $"{x.temp}: {x.timeStamp.ToString()}")));
 
             //TODO: Return success or failure. (can this fail?)
             return true;

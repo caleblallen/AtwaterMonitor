@@ -33,8 +33,6 @@ namespace AtwaterMonitor
     //Primary Controller object for the Atwater Monitor program.
     class Controller
     { 
-        private string[] UpsIpAddresses;
-
         private Model AtwaterMonitorModel;
 
         public Controller()
@@ -42,13 +40,14 @@ namespace AtwaterMonitor
             AtwaterMonitorModel = new Model();
         }
 
-        public bool init()
+        public void run()
         {
             //Can't forget about our unit tests
             TestDriver();
 
             //Initialize our UPS IPAddresses
-            UpsIpAddresses = new string[] {
+            //TODO: Replace with a config file.
+            string[] UpsIpAddresses = new string[] {
                 "10.10.200.110",
                 "10.10.200.111",
                 "10.10.200.112",
@@ -82,24 +81,26 @@ namespace AtwaterMonitor
                 "10.10.210.103",
                 "10.10.210.104"};
 
+            //Create all our devices
             foreach (string ip in UpsIpAddresses)
             {
                 AtwaterMonitorModel.AddNetworkDevice(CreateApcUpsAtIp(ip));
             }
-
-            List<UPS> modeledDevices = AtwaterMonitorModel.GetUPSDeviceEnumerator();
 
 
             bool done = false;
             
             while (!done)
             {
+                //Grab a list of UPS devices from the Model. Created each loop in case devices are added.
+                List<UPS> modeledDevices = AtwaterMonitorModel.GetUPSDeviceEnumerator();
+
                 foreach(UPS u in modeledDevices)
                 {
                     //Update the current UPS. Skip the wait if we don't successfully update this unit.
                     if(UpdateUPS(u))
                     {
-                        //Naive Polling Interval.
+                        //Enforce a polling interval. Ambient temperature need be measured over minutes not milliseconds.
                         Console.WriteLine("Sleeping (2 seconds)...\n");
                         Thread.Sleep(2000);
                     }
@@ -107,11 +108,6 @@ namespace AtwaterMonitor
                 }
 
             }
-            
-
-            //TODO: Make this return value reflect success/failure
-            return true;
-
         }
 
         private bool UpdateUPS(UPS deviceToPoll)
@@ -190,6 +186,8 @@ namespace AtwaterMonitor
                 return null;
             }
 
+
+            //Now we create our UPS unit.
             if (!temperatureResult.Equals(new KeyValuePair<string, string>("", "")))
             {
                 return new UPS(hostname:snmpResults["1.3.6.1.4.1.318.1.1.1.1.1.2.0"],
@@ -351,7 +349,7 @@ namespace AtwaterMonitor
             /******** END Credited Code ********/
         }
 
-        //Method to return our Closure (delegeate) for use.
+        //Method to return our Closure (delegate) for use.
         public ServiceCallback GetHttpRequestHandler()
         {
             return new ServiceCallback(this.HttpRequestHandler);
@@ -363,7 +361,7 @@ namespace AtwaterMonitor
             StringBuilder ControllerResponse = new StringBuilder();
             switch(type)
             {
-                case WebRequestType.GetTemperature:
+                case WebRequestType.GetAllTemperatures:
      
                     ControllerResponse.Append(JsonConvert.SerializeObject(AtwaterMonitorModel.GetUPSDeviceEnumerator(), Formatting.None).ToString());
                     break;
@@ -375,6 +373,7 @@ namespace AtwaterMonitor
             return ControllerResponse.ToString();
         }
 
+        //This method is a collection of unit test assertions.
         static void TestDriver()
         {
             Model AtwaterMonitorModel = new Model();

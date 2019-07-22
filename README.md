@@ -11,7 +11,7 @@ The Atwater Monitor will:
 3. notify administrators of dangerous temperatures via email alerts
 
 ## TODO
-
+* Restrict Cross Origin Requests to Web Server only.
 * Implement email alerts for devices above a threshold. 
 * UPS IP Addresses are hardcoded. Switch this to a config file or database.
 * Sanitize web requests to prevent security breaches
