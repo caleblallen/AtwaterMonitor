@@ -133,20 +133,25 @@ function getSafeTemperaturePercentage(temp)
 function pullAllDataFromWebserver()
 {
 	$.ajax({
-	  url: 'http://amonitor.example.com:3000/',
-	  async: true,
-	  success: function(data) 
-	  	{ 
-	  		parseData(data);
-	  		drawUpsTable();
-	  	},
-	  error: function (jqXHR, exception) 
-	  	{ 
-	  		console.log('Ajax Request Error');
-	  	},
-	  dataType: 'text'
-	});
-}
+		url: 'http://amonitor.example.com:3000/',
+		async: true,
+		method: 'POST',
+		data: {
+			'WebRequestType': 'DashboardDataExtract',
+			'IPAddress': '0.0.0.0'
+		},
+		success: function(data)
+		{
+			parseData(data);
+			drawUpsTable();
+		},
+		error: function (jqXHR, exception)
+		{
+			console.log('Ajax Request Error');
+		},
+			dataType: 'text'
+		});
+	}
 
 function parseData(data)
 {

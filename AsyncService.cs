@@ -25,7 +25,8 @@ namespace AtwaterMonitor
 
             //Bind whatever IPAddresses are assigned to this server.
             for (int i = 0; i < ipHostInfo.AddressList.Length; ++i) {
-                if (ipHostInfo.AddressList[i].AddressFamily == AddressFamily.InterNetwork)
+                if (ipHostInfo.AddressList[i].AddressFamily == AddressFamily.InterNetwork &&
+                    !ipHostInfo.AddressList[i].ToString().Contains("169.254"))
                 {
                     this.ipAddress = ipHostInfo.AddressList[i];
                     break;
@@ -75,47 +76,57 @@ namespace AtwaterMonitor
                 StreamWriter writer = new StreamWriter(networkStream);
                 writer.AutoFlush = true;
 
-                //Flag to finish operations
-                bool done = false; 
 
-                while (!done)
+                //Stealing Liberally from https://stackoverflow.com/questions/26058594/how-to-get-all-data-from-networkstream
+                //If we can read information from the networkStream...read it into a StringBuilder
+                if(networkStream.CanRead)
                 {
-                    //Read a line of incoming data
-                    string request = await reader.ReadLineAsync();
+                    byte[] readBuffer = new byte[1024];
 
-                    //Process valid requests.
-                    if (request != null)
+                    //Full webrequest.
+                    StringBuilder fullMessage = new StringBuilder();
+
+                    int numberOfBytesRead = 0;
+
+                    //Read all data from the stream into fullMessage
+                    do
                     {
-                        //Notify the console the request was received.
-                        //TODO: Remove in Version 1.
-                        Console.WriteLine("Received service request: " + request);
+                        numberOfBytesRead = await networkStream.ReadAsync(readBuffer,0,readBuffer.Length);
 
-                        //Prepare resonses and ignore superfluous ones.
-                        string response = PrepareReponse(request);
+                        fullMessage.AppendFormat("{0}", Encoding.ASCII.GetString(readBuffer,0,numberOfBytesRead));
 
-                        if (!string.IsNullOrEmpty(response))
-                        {
-                            //Invoke the callback that corresponds to Controller.HttpRequestHandler();
-                            string dataFromController = callback.Invoke(WebRequestType.GetAllTemperatures,"");
+                    } while (networkStream.DataAvailable);
 
-                            //Builder to prepare our response.
-                            StringBuilder res = new StringBuilder("HTTP/1.1 200 OK\r\n");
 
-                            //TODO: restrict cross origin to webserver only.
-                            res.Append("Access-Control-Allow-Origin: *\r\n"); 
-                            res.Append("Content-Type: text/*\r\n");
-                            res.Append("\r\n");
-                            res.Append(dataFromController);
-                            await writer.WriteLineAsync(res.ToString());
+                    //Examine the request to see if it is properly formatted.
+                    Tuple<String,String> opRequest = IsProperlyFormatted(fullMessage.ToString());
 
-                            //Currently, we end operation after sending data. Client may make a new request if needed.
-                            done = true;
-                        }
+                    if (opRequest != null)
+                    {
+                        //Match the sent web request type with our Enum WebRequestType.
+                        WebRequestType operation;
+                        Enum.TryParse<WebRequestType>(opRequest.Item1, out operation);
 
+                        //Invoke the callback that corresponds to Controller.HttpRequestHandler();
+                        string dataFromController = callback.Invoke(operation,opRequest.Item2);
+
+                        //Builder to prepare our response.
+                        StringBuilder res = new StringBuilder("HTTP/1.1 200 OK\r\n");
+
+                        //TODO: restrict cross origin to webserver only.
+                        res.Append("Access-Control-Allow-Origin: *\r\n"); 
+                        res.Append("Content-Type: text/*\r\n");
+                        res.Append("\r\n");
+                        res.Append(dataFromController);
+                        await writer.WriteLineAsync(res.ToString());
                     }
-                    else
-                        break; // client closede connection
+
                 }
+                else
+                {
+                    Console.WriteLine("Network Stream Unreadable.");
+                }
+
                 tcpClient.Close();
             }
             catch (Exception ex)
@@ -125,6 +136,36 @@ namespace AtwaterMonitor
                     tcpClient.Close();
             }
         } // Process
+
+        private static Tuple<String,String> IsProperlyFormatted(string webRequest)
+        {
+
+            //Format a regular expression that filters out any non-supported WebRequestType's
+            string regexPattern = String.Format("{0}",String.Join("|",Enum.GetNames(typeof(WebRequestType))));
+            regexPattern = @"WebRequestType=(" + regexPattern + @")";
+            Regex properWebRequestFormat = new Regex(regexPattern,RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+            //Examine the web request for a supported WebRequestType
+            MatchCollection m = properWebRequestFormat.Matches(webRequest);
+
+            //Process Valid Requests
+            if(m.Count > 0)
+            {
+                //Check for an IP Address to use when processing the request.
+                Regex findIpAddress = new Regex(@"IPAddress=(\d+\.\d+\.\d+\.\d+)",RegexOptions.Compiled | RegexOptions.IgnoreCase);
+                MatchCollection ipMatch = findIpAddress.Matches(webRequest);
+
+                //Return Tuple with or without IPAddres where appropriate.
+                if(ipMatch.Count > 0)
+                    return Tuple.Create<String,String>(m[0].Groups[1].ToString(),ipMatch[0].Groups[1].ToString());
+                else
+                    return Tuple.Create<String,String>(m[0].Groups[1].ToString(),"");
+
+            }
+            //Request is unsupported.
+            else
+                return null;
+        }
 
         //Method used for ignoring Superfulous requests.
         private static string PrepareReponse(string request)

@@ -11,6 +11,8 @@ namespace AtwaterMonitor
     {
         GetTemperature,
         GetAllTemperatures,
+        GetTemperatureHistory,
+        DashboardDataExtract,
 
     };
 

@@ -101,7 +101,7 @@ namespace AtwaterMonitor
                     if(UpdateUPS(u))
                     {
                         //Enforce a polling interval. Ambient temperature need be measured over minutes not milliseconds.
-                        Console.WriteLine("Sleeping (2 seconds)...\n");
+                        //Console.WriteLine("Sleeping (2 seconds)...\n");
                         Thread.Sleep(2000);
                     }
 
@@ -112,7 +112,7 @@ namespace AtwaterMonitor
 
         private bool UpdateUPS(UPS deviceToPoll)
         {
-            Console.WriteLine($"Updating Device at {deviceToPoll.IPAddress}");
+            //Console.WriteLine($"Updating Device at {deviceToPoll.IPAddress}");
 
             //No Temperature Probe Oid on this device. Skip for now.
             //TODO: Have this try to reaquire a temperature probe Oid? 
@@ -361,7 +361,7 @@ namespace AtwaterMonitor
             StringBuilder ControllerResponse = new StringBuilder();
             switch(type)
             {
-                case WebRequestType.GetAllTemperatures:
+                case WebRequestType.DashboardDataExtract:
      
                     ControllerResponse.Append(JsonConvert.SerializeObject(AtwaterMonitorModel.GetUPSDeviceEnumerator(), Formatting.None).ToString());
                     break;
