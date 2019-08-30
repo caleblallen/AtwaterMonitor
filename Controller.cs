@@ -354,6 +354,19 @@ namespace AtwaterMonitor
         {
             return new ServiceCallback(this.HttpRequestHandler);
         }
+        
+        //Extract, Format, and Serialize the TemperatureHistory of a UPS at ipAddress for use by the Javascript View.
+        private String GetTemperatureHistory(String ipAddress)
+        {
+            //Handle Errors
+            if(ipAddress.Equals(""))
+                return "Error: Please provide an IPAddress in our HTTP Request";
+
+            UPS dev = (UPS)AtwaterMonitorModel.GetDeviceWithIP(ipAddress);
+            
+            return JsonConvert.SerializeObject(dev.GetTemperatureHistory(),Formatting.None).ToString().Replace("Item1","Temperature").Replace("Item2","TimeStamp");
+
+        }
 
         //Method to format our web server responses based on the type of request.
         public string HttpRequestHandler(WebRequestType type, string deviceIpAddress)
@@ -362,10 +375,13 @@ namespace AtwaterMonitor
             switch(type)
             {
                 case WebRequestType.DashboardDataExtract:
-     
                     ControllerResponse.Append(JsonConvert.SerializeObject(AtwaterMonitorModel.GetUPSDeviceEnumerator(), Formatting.None).ToString());
                     break;
-
+                case WebRequestType.GetTemperatureHistory:
+                    ControllerResponse.Append(GetTemperatureHistory(deviceIpAddress));
+                    //TODO: Remove this
+                    Console.WriteLine(ControllerResponse.ToString());
+                    break;
                 default:
                     break;
             }

@@ -1,15 +1,123 @@
-var UPS_DATA = {}
-
+var UPS_DATA = {};
+var LINE_CHART = null;
 $ ( document ).ready( function() {
 
 	pullAllDataFromWebserver();
-	
+
+
+	$('#TempHistoryButton').on('click', function() {
+
+		presentDrillDownModal('10.10.180.103')
+
+
+	})
 	});
+
+function presentDrillDownModal(ipAddress){
+	$('#drill-down-modal').modal('show');
+	$('[name=modal-ip-address]').html(ipAddress);
+	$.ajax({
+		url: 'http://amonitor.example.com:3000/',
+		async: true,
+		method: 'POST',
+		data: {
+			'WebRequestType': 'GetTemperatureHistory',
+			'IPAddress': ipAddress
+		},
+		success: function(data)
+		{
+			let temperatureData = JSON.parse(data);
+			drawChart('ambientTemperatureDisplayChart',temperatureData);
+
+		},
+		error: function (jqXHR, exception)
+		{
+			console.log('Ajax Request Error');
+		},
+		dataType: 'text'
+	});
+}
+
+function drawChart(id,data) {
+
+	let labels = [];
+	let dataToDraw = [];
+
+	for(let e in data){
+		labels.push(data[e]["TimeStamp"].match(/T([\d:]+)/g)[0].substring(1));
+		dataToDraw.push(data[e]["Temperature"]);
+	}
+
+	//line chart
+	let ctx = document.getElementById(id);
+	//ctx.height = $( document ).width()/20;
+	let ctxContext = document.getElementById(id).getContext("2d");
+
+	if(LINE_CHART !== null){
+		LINE_CHART.destroy();
+	}
+
+	let gradientStroke = ctxContext.createLinearGradient(5,5,25,400);
+
+	gradientStroke.addColorStop(0, "#E71D36");
+
+
+	gradientStroke.addColorStop(0.35, "#F29D56");
+	gradientStroke.addColorStop(0.7, "#71F79F");
+	gradientStroke.addColorStop(1, "#0FA3B1");
+
+	//gradientStroke.addColorStop(1, "#011627");
+
+
+	LINE_CHART = new Chart(ctx, {
+		type: 'line',
+		data: {
+			//labels: ["January", "February", "March", "April", "May", "June", "July"],
+			labels: labels,
+			datasets: [
+				{
+					label: "My First dataset",
+					borderColor: "rgba(0,	0, 0,.4)",
+					borderWidth: "3",
+					backgroundColor: gradientStroke,//"rgba(242,	157, 86,.7)",
+					data: dataToDraw
+				}
+			],
+		},
+		options: {
+			responsive: true,
+			tooltips: {
+				mode: 'index',
+				intersect: false,
+				callbacks: {
+					label: (item) => `${item.yLabel}°F`
+				}
+			},
+			hover: {
+				mode: 'nearest',
+				intersect: true
+			},
+			legend: {
+				display: false
+			},
+			scales: {
+				yAxes: [{
+					ticks: {
+						min: 30,
+						max: 100,
+					}
+				}]
+			}
+
+		}
+	});
+
+}
 
 function drawUpsTable()
 {
 
-	var columnOrder = ['IPAddress', 'Model','CurrentAmbientTemperature', 'AverageAmbientTemperature'];
+	var columnOrder = ['Hostname','CurrentAmbientTemperature','IPAddress','Model'];
 	var columnFriendlyNames = {
 	'IPAddress': 'IP Address', 
 	'Hostname': 'Hostname',
@@ -30,7 +138,7 @@ function drawUpsTable()
 
 	var table = jQuery('<table/>', {
 		type: 'table',
-		class: 'table header-border table-hover verticle-middle',
+		class: 'table header-border table-striped table-hover verticle-middle',
 	}).appendTo(tableWrapper);
 
 	var tHead = jQuery('<thead/>').appendTo(table);
@@ -54,7 +162,14 @@ function drawUpsTable()
 	for (index in allUpsKeys)
 	{
 		var ip = allUpsKeys[index];
-		var row = jQuery('<tr/>').appendTo(tBody);
+		if (UPS_DATA[ip]['Model'] === 'Unknown') {
+			continue;
+
+		}
+		var row = jQuery('<tr/>',{
+			class: 'clickable-entry',
+			id: 'dev-row-'+ ip
+		}).appendTo(tBody);
 		for (col in columnOrder)
 		{
 			if(columnOrder[col].includes("Temperature")){
@@ -85,7 +200,12 @@ function drawUpsTable()
 
 			}
 		}
+
+
 	}
+	$('.clickable-entry').on('click', function () {
+		presentDrillDownModal(this.id.replace('dev-row-',''));
+	})
 
 }
 
@@ -95,7 +215,7 @@ function getTempBarColors(percentage)
 	{
 		return "bg-primary";
 	}
-	else if (percentage < 75)
+	else if (percentage < 70)
 	{
 		return "bg-success";
 	}
@@ -138,7 +258,6 @@ function pullAllDataFromWebserver()
 		method: 'POST',
 		data: {
 			'WebRequestType': 'DashboardDataExtract',
-			'IPAddress': '0.0.0.0'
 		},
 		success: function(data)
 		{
@@ -170,7 +289,4 @@ function parseData(data)
 			UPS_DATA[dataJson[index]['IPAddress']] = dataJson[index];
 		}
 	}
-
-	console.log(UPS_DATA);
-
 }

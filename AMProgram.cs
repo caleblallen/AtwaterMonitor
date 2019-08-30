@@ -9,7 +9,7 @@ namespace AtwaterMonitor
     //Requests we weill actually respond to.
     public enum WebRequestType 
     {
-        GetTemperature,
+        GetCurrentTemperature,
         GetAllTemperatures,
         GetTemperatureHistory,
         DashboardDataExtract,

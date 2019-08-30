@@ -9,7 +9,7 @@ namespace AtwaterMonitor
     class UPS : NetworkDevice
     {
         //Track the max temperature readings we want to keep per device.
-        static int MaxHistoryLength = 48;
+        static int MaxHistoryLength = 128;
 
         //Object Identifiers for APC UPS Units
         public static string[] Oids =
@@ -55,6 +55,7 @@ namespace AtwaterMonitor
                 this.temp = temperature;
                 this.timeStamp = time;
             }
+
         }
 
         public float AverageAmbientTemperature { get; private set; }
@@ -132,6 +133,10 @@ namespace AtwaterMonitor
 
             //TODO: Return success or failure. (can this fail?)
             return true;
+        }
+
+        public List<(float Temperature, DateTime TimeStamp)> GetTemperatureHistory(){
+            return AmbientTemperatureHistory.Select(i => (Temperature: i.temp, TimeStamp: i.timeStamp)).ToList();
         }
 
         public override string ToString()
